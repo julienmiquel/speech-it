@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Terminal, Waves, ChevronsUpDown, Check } from "lucide-react";
@@ -29,39 +28,53 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
+const languages = [
+  { value: "fr-FR", label: "French (France)" },
+  { value: "en-US", label: "English (US)" },
+  { value: "es-ES", label: "Spanish (Spain)" },
+];
+
 const voices = [
-  { value: "achernar", label: "Achernar" },
-  { value: "achird", label: "Achird" },
-  { value: "algenib", label: "Algenib" },
-  { value: "algieba", label: "Algieba" },
-  { value: "alnilam", label: "Alnilam" },
-  { value: "aoede", label: "Aoede" },
-  { value: "autonoe", label: "Autonoe" },
-  { value: "callirrhoe", label: "Callirrhoe" },
-  { value: "charon", label: "Charon" },
-  { value: "despina", label: "Despina" },
-  { value: "enceladus", label: "Enceladus" },
-  { value: "erinome", label: "Erinome" },
-  { value: "fenrir", label: "Fenrir" },
-  { value: "gacrux", label: "Gacrux" },
-  { value: "iapetus", label: "Iapetus" },
-  { value: "kore", label: "Kore" },
-  { value: "laomedeia", label: "Laomedeia" },
-  { value: "leda", label: "Leda" },
-  { value: "orus", label: "Orus" },
-  { value: "puck", label: "Puck" },
-  { value: "pulcherrima", label: "Pulcherrima" },
-  { value: "rasalgethi", label: "Rasalgethi" },
-  { value: "sadachbia", label: "Sadachbia" },
-  { value: "sadaltager", label: "Sadaltager" },
-  { value: "schedar", label: "Schedar" },
-  { value: "sulafat", label: "Sulafat" },
-  { value: "umbriel", label: "Umbriel" },
-  { value: "vindemiatrix", label: "Vindemiatrix" },
-  { value: "zephyr", label: "Zephyr" },
-  { value: "zubenelgenubi", label: "Zubenelgenubi" },
+  { value: "achernar", label: "Achernar", gender: "male" },
+  { value: "achird", label: "Achird", gender: "female" },
+  { value: "algenib", label: "Algenib", gender: "male" },
+  { value: "algieba", label: "Algieba", gender: "male" },
+  { value: "alnilam", label: "Alnilam", gender: "female" },
+  { value: "aoede", label: "Aoede", gender: "female" },
+  { value: "autonoe", label: "Autonoe", gender: "female" },
+  { value: "callirrhoe", label: "Callirrhoe", gender: "female" },
+  { value: "charon", label: "Charon", gender: "male" },
+  { value: "despina", label: "Despina", gender: "female" },
+  { value: "enceladus", label: "Enceladus", gender: "male" },
+  { value: "erinome", label: "Erinome", gender: "female" },
+  { value: "fenrir", label: "Fenrir", gender: "male" },
+  { value: "gacrux", label: "Gacrux", gender: "male" },
+  { value: "iapetus", label: "Iapetus", gender: "male" },
+  { value: "kore", label: "Kore", gender: "female" },
+  { value: "laomedeia", label: "Laomedeia", gender: "female" },
+  { value: "leda", label: "Leda", gender: "female" },
+  { value: "orus", label: "Orus", gender: "male" },
+  { value: "puck", label: "Puck", gender: "male" },
+  { value: "pulcherrima", label: "Pulcherrima", gender: "female" },
+  { value: "rasalgethi", label: "Rasalgethi", gender: "male" },
+  { value: "sadachbia", label: "Sadachbia", gender: "female" },
+  { value: "sadaltager", label: "Sadaltager", gender: "male" },
+  { value: "schedar", label: "Schedar", gender: "female" },
+  { value: "sulafat", label: "Sulafat", gender: "male" },
+  { value: "umbriel", label: "Umbriel", gender: "female" },
+  { value: "vindemiatrix", label: "Vindemiatrix", gender: "female" },
+  { value: "zephyr", label: "Zephyr", gender: "male" },
+  { value: "zubenelgenubi", label: "Zubenelgenubi", gender: "male" },
 ];
 
 export default function Home() {
@@ -70,10 +83,24 @@ export default function Home() {
   );
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("charon");
+  const [gender, setGender] = useState("any");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+
+  const filteredVoices = useMemo(() => {
+    if (gender === "any") {
+      return voices;
+    }
+    return voices.filter((v) => v.gender === gender);
+  }, [gender]);
+
+  useEffect(() => {
+    if (voiceName && !filteredVoices.some((v) => v.value === voiceName)) {
+      setVoiceName("");
+    }
+  }, [filteredVoices, voiceName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,21 +176,31 @@ export default function Home() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="language-code" className="text-base">
-                    Language Code
+                  <Label htmlFor="language" className="text-base">
+                    Language
                   </Label>
-                  <Input
-                    id="language-code"
+                  <Select
                     value={languageCode}
-                    onChange={(e) => setLanguageCode(e.target.value)}
-                    placeholder="e.g., fr-FR"
-                    className="text-base rounded-lg"
-                  />
+                    onValueChange={setLanguageCode}
+                    defaultValue="fr-FR"
+                  >
+                    <SelectTrigger
+                      id="language"
+                      className="text-base rounded-lg"
+                    >
+                      <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {languages.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-base">
-                    Voice Name
-                  </Label>
+                  <Label className="text-base">Voice Name</Label>
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -185,13 +222,15 @@ export default function Home() {
                         <CommandEmpty>No voice found.</CommandEmpty>
                         <CommandList>
                           <CommandGroup>
-                            {voices.map((voice) => (
+                            {filteredVoices.map((voice) => (
                               <CommandItem
                                 key={voice.value}
                                 value={voice.value}
                                 onSelect={(currentValue) => {
                                   setVoiceName(
-                                    currentValue === voiceName ? "" : currentValue
+                                    currentValue === voiceName
+                                      ? ""
+                                      : currentValue
                                   );
                                   setOpen(false);
                                 }}
@@ -213,6 +252,33 @@ export default function Home() {
                     </PopoverContent>
                   </Popover>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-base">Voice Gender</Label>
+                <RadioGroup
+                  value={gender}
+                  onValueChange={setGender}
+                  className="flex items-center space-x-4 pt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="any" id="gender-any" />
+                    <Label htmlFor="gender-any" className="font-normal">
+                      Any
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="female" id="gender-female" />
+                    <Label htmlFor="gender-female" className="font-normal">
+                      Female
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="male" id="gender-male" />
+                    <Label htmlFor="gender-male" className="font-normal">
+                      Male
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col items-stretch gap-4 px-8 pb-8">
