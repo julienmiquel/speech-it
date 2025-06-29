@@ -127,9 +127,9 @@ const voices = [
 ];
 
 export default function Home() {
-  const [projectName, setProjectName] = useState("My Chirpify Project");
+  const [projectName, setProjectName] = useState("My Speech-it Project");
   const [text, setText] = useState(
-    "Bonjour, bienvenue sur Chirpify ! Écrivez n'importe quel texte ici et je le lirai pour vous."
+    "Bonjour, bienvenue sur Speech-it ! Écrivez n'importe quel texte ici et je le lirai pour vous."
   );
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("charon");
@@ -161,7 +161,7 @@ export default function Home() {
     }
 
     const zip = new JSZip();
-    const safeProjectName = projectName.trim() || "chirpify-project";
+    const safeProjectName = projectName.trim() || "speech-it-project";
 
     if (combinedAudioUrl) {
       const combinedBase64 = combinedAudioUrl.split(",")[1];
@@ -273,7 +273,7 @@ export default function Home() {
               </div>
             </div>
             <CardTitle className="text-4xl font-headline tracking-tight">
-              Chirpify
+              Speech-it
             </CardTitle>
             <CardDescription className="text-lg">
               Bring your text to life with natural-sounding speech.
