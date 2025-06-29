@@ -18,7 +18,7 @@ import { Loader2, Terminal, Waves } from "lucide-react";
 
 export default function Home() {
   const [text, setText] = useState(
-    "Hello, welcome to Chirpify! Write any text here and I will read it for you."
+    "Bonjour, bienvenue sur Chirpify ! Écrivez n'importe quel texte ici et je le lirai pour vous."
   );
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("fr-FR-Chirp3-HD-Charon");
