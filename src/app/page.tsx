@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Terminal, Waves } from "lucide-react";
+import { generateSpeech } from "@/ai/flows/tts-flow";
 
 export default function Home() {
   const [text, setText] = useState(
@@ -38,34 +39,17 @@ export default function Home() {
       return;
     }
 
-    const params = new URLSearchParams({
-      text,
-      language_code: languageCode,
-      voice_name: voiceName,
-    });
-
-    const url = `https://backend-api-1008225662928.europe-west9.run.app/stt?${params.toString()}`;
-
     try {
-      const response = await fetch(url);
+      const response = await generateSpeech({
+        text,
+        languageCode,
+        voiceName,
+      });
 
-      if (!response.ok) {
-        let errorText = `Error: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-          errorText = errorData.detail || errorText;
-        } catch (e) {
-          // Response was not JSON, use the status text.
-        }
-        throw new Error(errorText);
-      }
-
-      const blob = await response.blob();
-      if (blob.type.includes('audio')) {
-        const newAudioUrl = URL.createObjectURL(blob);
-        setAudioUrl(newAudioUrl);
+      if (response.media) {
+        setAudioUrl(response.media);
       } else {
-        throw new Error("The response was not a valid audio file.");
+        throw new Error("The response did not contain valid audio data.");
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred during the request.");
