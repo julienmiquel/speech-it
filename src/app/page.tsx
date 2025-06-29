@@ -13,7 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Terminal, Waves, ChevronsUpDown, Check } from "lucide-react";
+import {
+  Loader2,
+  Terminal,
+  Waves,
+  ChevronsUpDown,
+  Check,
+  Download,
+} from "lucide-react";
 import { generateSpeech } from "@/ai/flows/tts-flow";
 import { combineAudio } from "@/ai/flows/combine-audio-flow";
 import {
@@ -37,7 +44,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import JSZip from "jszip";
 
 const MAX_CHUNK_LENGTH = 1000;
 
@@ -77,7 +86,6 @@ function splitTextIntoChunks(text: string, maxLength: number): string[] {
 
   return finalChunks.filter((c) => c.length > 0);
 }
-
 
 const languages = [
   { value: "fr-FR", label: "French (France)" },
@@ -119,6 +127,7 @@ const voices = [
 ];
 
 export default function Home() {
+  const [projectName, setProjectName] = useState("My Chirpify Project");
   const [text, setText] = useState(
     "Bonjour, bienvenue sur Chirpify ! Écrivez n'importe quel texte ici et je le lirai pour vous."
   );
@@ -145,6 +154,49 @@ export default function Home() {
     }
   }, [filteredVoices, voiceName]);
 
+  const handleDownloadAll = async () => {
+    if (audioUrls.length === 0 && !combinedAudioUrl) {
+      setError("No audio files to download.");
+      return;
+    }
+
+    const zip = new JSZip();
+    const safeProjectName = projectName.trim() || "chirpify-project";
+
+    if (combinedAudioUrl) {
+      const combinedBase64 = combinedAudioUrl.split(",")[1];
+      zip.file(`${safeProjectName}.wav`, combinedBase64, { base64: true });
+    }
+
+    if (audioUrls.length > 1) {
+      const partsFolder = zip.folder("parts");
+      if (partsFolder) {
+        audioUrls.forEach((url, index) => {
+          const base64 = url.split(",")[1];
+          partsFolder.file(`${safeProjectName}-Part${index + 1}.wav`, base64, {
+            base64: true,
+          });
+        });
+      }
+    }
+
+    try {
+      const content = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(content);
+      link.download = `${safeProjectName}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (err: any) {
+      setError(
+        err.message ||
+          "An unexpected error occurred while creating the zip file."
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -167,12 +219,12 @@ export default function Home() {
 
     try {
       const chunks = splitTextIntoChunks(text, MAX_CHUNK_LENGTH);
-       if (chunks.length === 0) {
+      if (chunks.length === 0) {
         setError("Text is too short to be chunked.");
         setIsLoading(false);
         return;
       }
-      
+
       const chunkUrls: string[] = [];
       for (const chunk of chunks) {
         const response = await generateSpeech({
@@ -200,7 +252,6 @@ export default function Home() {
       } else if (chunkUrls.length === 1) {
         setCombinedAudioUrl(chunkUrls[0]);
       }
-
     } catch (err: any) {
       setError(
         err.message || "An unexpected error occurred during the request."
@@ -230,6 +281,18 @@ export default function Home() {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-6 px-8 py-6">
+              <div className="space-y-2">
+                <Label htmlFor="projectName" className="text-base">
+                  Project Name
+                </Label>
+                <Input
+                  id="projectName"
+                  placeholder="Enter a name for your project"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="text-base rounded-lg"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="text" className="text-base">
                   Your Text
@@ -367,6 +430,18 @@ export default function Home() {
                   "Generate Speech"
                 )}
               </Button>
+              {(combinedAudioUrl || audioUrls.length > 0) && !isLoading && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={handleDownloadAll}
+                  className="w-full text-lg py-7 rounded-xl font-bold"
+                >
+                  <Download className="mr-2 h-6 w-6" />
+                  Download All Files (.zip)
+                </Button>
+              )}
               {error && (
                 <Alert variant="destructive" className="mt-4 rounded-lg">
                   <Terminal className="h-4 w-4" />
@@ -380,7 +455,11 @@ export default function Home() {
                     Final Assembled Audio
                   </h3>
                   <div className="space-y-4">
-                    <audio controls src={combinedAudioUrl} className="w-full mt-1">
+                    <audio
+                      controls
+                      src={combinedAudioUrl}
+                      className="w-full mt-1"
+                    >
                       Your browser does not support the audio element.
                     </audio>
                   </div>
