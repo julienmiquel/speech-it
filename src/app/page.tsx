@@ -38,6 +38,46 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
+const MAX_CHUNK_LENGTH = 1000;
+
+function splitTextIntoChunks(text: string, maxLength: number): string[] {
+  const finalChunks: string[] = [];
+  if (!text) return finalChunks;
+
+  if (text.length <= maxLength) {
+    return [text];
+  }
+
+  const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [];
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    if (sentence.length > maxLength) {
+      if (currentChunk.length > 0) {
+        finalChunks.push(currentChunk.trim());
+        currentChunk = "";
+      }
+      for (let i = 0; i < sentence.length; i += maxLength) {
+        finalChunks.push(sentence.substring(i, i + maxLength));
+      }
+    } else {
+      if (currentChunk.length + sentence.length > maxLength) {
+        finalChunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+  }
+
+  if (currentChunk.length > 0) {
+    finalChunks.push(currentChunk.trim());
+  }
+
+  return finalChunks.filter((c) => c.length > 0);
+}
+
+
 const languages = [
   { value: "fr-FR", label: "French (France)" },
   { value: "en-US", label: "English (US)" },
@@ -84,7 +124,7 @@ export default function Home() {
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("charon");
   const [gender, setGender] = useState("any");
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUrls, setAudioUrls] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -106,7 +146,7 @@ export default function Home() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    setAudioUrl(null);
+    setAudioUrls([]);
 
     if (!text.trim()) {
       setError("Text to be converted cannot be empty.");
@@ -121,16 +161,25 @@ export default function Home() {
     }
 
     try {
-      const response = await generateSpeech({
-        text,
-        languageCode,
-        voiceName,
-      });
+      const chunks = splitTextIntoChunks(text, MAX_CHUNK_LENGTH);
+       if (chunks.length === 0) {
+        setError("Text is too short to be chunked.");
+        setIsLoading(false);
+        return;
+      }
+      
+      for (const chunk of chunks) {
+        const response = await generateSpeech({
+          text: chunk,
+          languageCode,
+          voiceName,
+        });
 
-      if (response.media) {
-        setAudioUrl(response.media);
-      } else {
-        throw new Error("The response did not contain valid audio data.");
+        if (response.media) {
+          setAudioUrls((prevUrls) => [...prevUrls, response.media]);
+        } else {
+          throw new Error("A response did not contain valid audio data.");
+        }
       }
     } catch (err: any) {
       setError(
@@ -304,14 +353,23 @@ export default function Home() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              {audioUrl && (
+              {audioUrls.length > 0 && (
                 <div className="mt-6 p-4 border rounded-xl bg-accent/20">
                   <h3 className="font-semibold text-lg mb-3 text-accent-foreground">
                     Listen to your speech
                   </h3>
-                  <audio controls src={audioUrl} className="w-full">
-                    Your browser does not support the audio element.
-                  </audio>
+                  <div className="space-y-4">
+                    {audioUrls.map((url, index) => (
+                      <div key={index}>
+                        <Label className="text-sm text-muted-foreground">
+                          Part {index + 1}
+                        </Label>
+                        <audio controls src={url} className="w-full mt-1">
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardFooter>
