@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Terminal, Waves, ChevronsUpDown, Check } from "lucide-react";
 import { generateSpeech } from "@/ai/flows/tts-flow";
+import { combineAudio } from "@/ai/flows/combine-audio-flow";
 import {
   Popover,
   PopoverContent,
@@ -125,7 +126,9 @@ export default function Home() {
   const [voiceName, setVoiceName] = useState("charon");
   const [gender, setGender] = useState("any");
   const [audioUrls, setAudioUrls] = useState<string[]>([]);
+  const [combinedAudioUrl, setCombinedAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCombining, setIsCombining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -145,8 +148,10 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setIsCombining(false);
     setError(null);
     setAudioUrls([]);
+    setCombinedAudioUrl(null);
 
     if (!text.trim()) {
       setError("Text to be converted cannot be empty.");
@@ -168,6 +173,7 @@ export default function Home() {
         return;
       }
       
+      const chunkUrls: string[] = [];
       for (const chunk of chunks) {
         const response = await generateSpeech({
           text: chunk,
@@ -176,17 +182,32 @@ export default function Home() {
         });
 
         if (response.media) {
-          setAudioUrls((prevUrls) => [...prevUrls, response.media]);
+          chunkUrls.push(response.media);
+          setAudioUrls([...chunkUrls]);
         } else {
           throw new Error("A response did not contain valid audio data.");
         }
       }
+
+      if (chunkUrls.length > 1) {
+        setIsCombining(true);
+        const combined = await combineAudio(chunkUrls);
+        if (combined.media) {
+          setCombinedAudioUrl(combined.media);
+        } else {
+          throw new Error("Failed to get combined audio from server.");
+        }
+      } else if (chunkUrls.length === 1) {
+        setCombinedAudioUrl(chunkUrls[0]);
+      }
+
     } catch (err: any) {
       setError(
         err.message || "An unexpected error occurred during the request."
       );
     } finally {
       setIsLoading(false);
+      setIsCombining(false);
     }
   };
 
@@ -340,7 +361,7 @@ export default function Home() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                    Generating...
+                    {isCombining ? "Assembling audio..." : "Generating..."}
                   </>
                 ) : (
                   "Generate Speech"
@@ -353,10 +374,22 @@ export default function Home() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              {audioUrls.length > 0 && (
+              {combinedAudioUrl && (
                 <div className="mt-6 p-4 border rounded-xl bg-accent/20">
                   <h3 className="font-semibold text-lg mb-3 text-accent-foreground">
-                    Listen to your speech
+                    Final Assembled Audio
+                  </h3>
+                  <div className="space-y-4">
+                    <audio controls src={combinedAudioUrl} className="w-full mt-1">
+                      Your browser does not support the audio element.
+                    </audio>
+                  </div>
+                </div>
+              )}
+              {audioUrls.length > 1 && (
+                <div className="mt-6 p-4 border rounded-xl bg-secondary">
+                  <h3 className="font-semibold text-lg mb-3 text-secondary-foreground">
+                    Audio Parts
                   </h3>
                   <div className="space-y-4">
                     {audioUrls.map((url, index) => (
