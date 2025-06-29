@@ -489,7 +489,7 @@ export default function Home() {
         </Card>
       </div>
       <footer className="mt-8 text-center text-muted-foreground text-sm">
-        <p>Created with passion by a Senior Engineer for Chirpify.</p>
+        <p>Created with passion by Julien Miquel &lt;julienmiquel@google.com&gt;</p>
       </footer>
     </main>
   );
