@@ -31,7 +31,7 @@ The application is built on a modern, server-centric architecture using Next.js 
   - `tts-flow.ts`: Handles the conversion of a single text chunk to speech.
   - `combine-audio-flow.ts`: Merges multiple audio chunks into a single WAV file.
 
-- **AI Model**: The core TTS functionality is powered by Google's `gemini-2.5-flash-preview-tts` model, accessed via the `@genkit-ai/googleai` plugin.
+- **AI Model**: The core TTS functionality is powered by Google's `gemini-2.5-flash-preview-tts` model, which is part of the [Google Gemini API](https://ai.google.dev/docs/speech). It is accessed via the `@genkit-ai/googleai` plugin in this application.
 
 ## Application Workflow
 
