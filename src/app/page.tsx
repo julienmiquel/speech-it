@@ -153,10 +153,8 @@ const voices = [
 ];
 
 export default function Home() {
-  const [projectName, setProjectName] = useState("My Speech-it Project");
-  const [text, setText] = useState(
-    "Bonjour, bienvenue sur Speech-it ! Écrivez n'importe quel texte ici et je le lirai pour vous."
-  );
+  const [projectName, setProjectName] = useState("");
+  const [text, setText] = useState("");
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("charon");
   const [gender, setGender] = useState("any");
@@ -330,7 +328,16 @@ export default function Home() {
                   id="text"
                   placeholder="Enter the text you want to convert to speech..."
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    const newText = e.target.value;
+                    const oldFirstLine = text.split("\n")[0].trim();
+                    const newFirstLine = newText.split("\n")[0].trim();
+
+                    if (projectName === oldFirstLine || projectName === "") {
+                      setProjectName(newFirstLine);
+                    }
+                    setText(newText);
+                  }}
                   rows={6}
                   required
                   className="resize-none text-base rounded-lg"
