@@ -530,7 +530,15 @@ export default function Home() {
         </Card>
       </div>
       <footer className="mt-8 text-center text-muted-foreground text-sm">
-        <p>Created with passion by Julien Miquel {'<julienmiquel@google.com>'}</p>
+        <p>
+          Created with passion by Julien Miquel{' '}
+          <a
+            href="mailto:julienmiquel@google.com"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            &lt;julienmiquel@google.com&gt;
+          </a>
+        </p>
       </footer>
     </main>
   );
