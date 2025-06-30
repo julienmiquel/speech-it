@@ -20,8 +20,9 @@ import {
   ChevronsUpDown,
   Check,
   Download,
+  RefreshCcw,
 } from "lucide-react";
-import { generateSpeech } from "@/ai/flows/tts-flow";
+import { generateSpeech, type GenerateSpeechInput, type GenerateSpeechOutput } from "@/ai/flows/tts-flow";
 import { combineAudio } from "@/ai/flows/combine-audio-flow";
 import {
   Popover,
@@ -87,6 +88,31 @@ function splitTextIntoChunks(text: string, maxLength: number): string[] {
   return finalChunks.filter((c) => c.length > 0);
 }
 
+async function generateSpeechWithRetry(
+  input: GenerateSpeechInput,
+  retries: number = 3
+): Promise<GenerateSpeechOutput> {
+  let lastError: any = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await generateSpeech(input);
+      if (response && response.media) {
+        return response;
+      }
+      throw new Error("API returned a successful response but without media data.");
+    } catch (err) {
+      lastError = err;
+      console.error(`Speech generation attempt ${i + 1} of ${retries} failed.`, err);
+      if (i < retries - 1) {
+        const delay = 500 * (i + 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError || new Error(`Speech generation failed after ${retries} retries.`);
+}
+
+
 const languages = [
   { value: "fr-FR", label: "French (France)" },
   { value: "en-US", label: "English (US)" },
@@ -140,6 +166,7 @@ export default function Home() {
   const [isCombining, setIsCombining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [showRetryButton, setShowRetryButton] = useState(false);
 
   const filteredVoices = useMemo(() => {
     if (gender === "any") {
@@ -204,6 +231,7 @@ export default function Home() {
     setError(null);
     setAudioUrls([]);
     setCombinedAudioUrl(null);
+    setShowRetryButton(false);
 
     if (!text.trim()) {
       setError("Text to be converted cannot be empty.");
@@ -227,7 +255,7 @@ export default function Home() {
 
       const chunkUrls: string[] = [];
       for (const chunk of chunks) {
-        const response = await generateSpeech({
+        const response = await generateSpeechWithRetry({
           text: chunk,
           languageCode,
           voiceName,
@@ -256,6 +284,7 @@ export default function Home() {
       setError(
         err.message || "An unexpected error occurred during the request."
       );
+      setShowRetryButton(true);
     } finally {
       setIsLoading(false);
       setIsCombining(false);
@@ -426,6 +455,11 @@ export default function Home() {
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                     {isCombining ? "Assembling audio..." : "Generating..."}
                   </>
+                ) : showRetryButton ? (
+                  <>
+                    <RefreshCcw className="mr-2 h-6 w-6" />
+                    Retry Generation
+                  </>
                 ) : (
                   "Generate Speech"
                 )}
@@ -489,7 +523,7 @@ export default function Home() {
         </Card>
       </div>
       <footer className="mt-8 text-center text-muted-foreground text-sm">
-        <p>Created with passion by Julien Miquel &lt;julienmiquel@google.com&gt;</p>
+        <p>Created with passion by Julien Miquel {'<julienmiquel@google.com>'}</p>
       </footer>
     </main>
   );
