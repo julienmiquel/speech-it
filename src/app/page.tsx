@@ -290,7 +290,7 @@ export default function Home() {
 
     if (combinedAudioUrl) {
       const combinedBase64 = combinedAudioUrl.split(",")[1];
-      zip.file(`${safeProjectName}.wav`, combinedBase64, { base64: true });
+      zip.file(`${safeProjectName}.mp3`, combinedBase64, { base64: true });
     }
 
     const audioUrls = successfulParts.map(p => p.audioUrl!);
