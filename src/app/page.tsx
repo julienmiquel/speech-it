@@ -65,7 +65,7 @@ interface Speaker {
 function splitTextIntoChunks(
   text: string,
   option: 'length' | 'scene' | 'speaker',
-  config: { maxLength: number; speakers: Speaker[] }
+  config: { maxLength: number; speakerNames: string[] }
 ): string[] {
   if (!text) return [];
 
@@ -77,9 +77,9 @@ function splitTextIntoChunks(
         .filter(Boolean);
 
     case 'speaker': {
-      if (config.speakers.length < 2) return [text.trim()]; // Splitting by speaker only makes sense for multi-speaker
-      const speakerNames = config.speakers.map((s) => s.name).join('|');
-      const speakerRegex = new RegExp(`(?=\\b(${speakerNames})\\b:)`, 'i');
+      if (config.speakerNames.length < 2) return [text.trim()]; // Splitting by speaker only makes sense for multi-speaker
+      const speakerNamesPattern = config.speakerNames.join('|');
+      const speakerRegex = new RegExp(`(?=\\b(${speakerNamesPattern})\\b:)`, 'i');
       return text
         .split(speakerRegex)
         .map((s) => s.trim())
@@ -312,7 +312,7 @@ export default function Home() {
       return;
     }
 
-    const chunks = splitTextIntoChunks(text, splitOption, { maxLength: MAX_CHUNK_LENGTH, speakers });
+    const chunks = splitTextIntoChunks(text, splitOption, { maxLength: MAX_CHUNK_LENGTH, speakerNames: speakers.map(s => s.name) });
 
     const partsToProcess = hasFailures
       ? generationParts.map(p => (p.status === 'error' ? { ...p, status: 'pending' } : p))
