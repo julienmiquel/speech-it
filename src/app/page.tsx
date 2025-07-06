@@ -296,10 +296,11 @@ export default function Home() {
         } else {
           throw new Error("A response did not contain valid audio data.");
         }
-      } catch (err) {
+      } catch (err: any) {
         anyFailuresThisRun = true;
         updatedParts[i] = { ...updatedParts[i], status: 'error', audioUrl: undefined };
         console.error(`Error generating speech for part ${i + 1}:`, err);
+        setError(err.message || `An error occurred generating part ${i + 1}.`);
       }
       setGenerationParts([...updatedParts]);
     }
@@ -394,9 +395,9 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <Label className="text-base">
-                    {speakers.length > 1 ? "Speakers" : "Speaker"}
+                    {speakers.length > 1 ? "Speakers (2 max)" : "Speaker"}
                   </Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addSpeaker} className="rounded-lg">
+                  <Button type="button" variant="outline" size="sm" onClick={addSpeaker} className="rounded-lg" disabled={speakers.length >= 2}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add Speaker
                   </Button>
@@ -554,12 +555,12 @@ export default function Home() {
       </div>
       <footer className="mt-8 text-center text-muted-foreground text-sm">
         <p>
-          Created with passion by Julien Miquel{' '}
+          Created with passion by Julien Miquel{" "}
           <a
             href="mailto:julienmiquel@google.com"
             className="text-primary underline-offset-4 hover:underline"
           >
-            {'<julienmiquel@google.com>'}
+            &lt;julienmiquel@google.com&gt;
           </a>
         </p>
       </footer>

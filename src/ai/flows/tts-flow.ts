@@ -68,8 +68,8 @@ const generateSpeechFlow = ai.defineFlow(
   async ({ text, speakers }) => {
     let speechConfig: any;
 
-    if (speakers && speakers.length > 1) {
-      // Multi-speaker configuration
+    if (speakers && speakers.length === 2) {
+      // Multi-speaker configuration for exactly two speakers
       speechConfig = {
         multiSpeakerVoiceConfig: {
           speakerVoiceConfigs: speakers.map(({ speaker, voiceName }) => ({
@@ -80,8 +80,11 @@ const generateSpeechFlow = ai.defineFlow(
           })),
         },
       };
+    } else if (speakers && speakers.length > 2) {
+      // Throw an error if more than two speakers are provided
+      throw new Error("Multi-speaker generation currently supports exactly two speakers.");
     } else {
-      // Single-speaker configuration (or fallback)
+      // Single-speaker configuration (or fallback for 0 or 1 speakers)
       const voiceName = speakers && speakers.length === 1 ? speakers[0].voiceName : 'charon'; // Default voice
       speechConfig = {
         voiceConfig: {
