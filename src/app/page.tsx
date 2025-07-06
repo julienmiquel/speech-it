@@ -154,6 +154,10 @@ const voices = [
   { value: "zubenelgenubi", label: "Zubenelgenubi", description: "Casual" },
 ];
 
+const models = [
+  { value: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash TTS (Recommended)" },
+];
+
 export default function Home() {
   const [projectName, setProjectName] = useState("");
   const [text, setText] = useState("");
@@ -166,6 +170,8 @@ export default function Home() {
   const [isCombining, setIsCombining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [openPopoverId, setOpenPopoverId] = useState<number | null>(null);
+  const [modelName, setModelName] = useState("gemini-2.5-flash-preview-tts");
+  const [isModelPopoverOpen, setIsModelPopoverOpen] = useState(false);
 
   const hasFailures = useMemo(() => generationParts.some(p => p.status === 'error'), [generationParts]);
   const successfulParts = useMemo(() => generationParts.filter(p => p.status === 'success'), [generationParts]);
@@ -254,6 +260,11 @@ export default function Home() {
       setIsLoading(false);
       return;
     }
+     if (!modelName.trim()) {
+      setError("TTS Model cannot be empty.");
+      setIsLoading(false);
+      return;
+    }
 
     const partsToProcess = hasFailures
       ? generationParts.map(p => (p.status === 'error' ? { ...p, status: 'pending' } : p))
@@ -289,6 +300,7 @@ export default function Home() {
         const response = await generateSpeechWithRetry({
           text: updatedParts[i].text,
           speakers: speakerConfigs,
+          modelName: modelName,
         });
 
         if (response.media) {
@@ -364,6 +376,55 @@ export default function Home() {
                   className="text-base rounded-lg"
                 />
               </div>
+               <div className="space-y-2">
+                <Label htmlFor="model-combobox" className="text-base">
+                  TTS Model
+                </Label>
+                <Popover open={isModelPopoverOpen} onOpenChange={setIsModelPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="model-combobox"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isModelPopoverOpen}
+                      className="w-full justify-between text-base rounded-lg bg-background"
+                    >
+                      <span className="truncate">{modelName || "Select or type a model..."}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <Command value={modelName} onValueChange={setModelName}>
+                      <CommandInput placeholder="Search or type model name..." />
+                      <CommandEmpty>No model found.</CommandEmpty>
+                      <CommandList>
+                        <CommandGroup>
+                          {models.map((model) => (
+                            <CommandItem
+                              key={model.value}
+                              value={model.value}
+                              onSelect={(currentValue) => {
+                                setModelName(currentValue);
+                                setIsModelPopoverOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  modelName === model.value
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {model.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="text" className="text-base">
                   Your Text
@@ -372,14 +433,14 @@ export default function Home() {
                   id="text"
                   placeholder={
                     speakers.length > 1
-                      ? "Enter your conversation, e.g.,\nSpeaker1: Hello there.\nSpeaker2: Hi, how are you?"
+                      ? "Enter your conversation, e.g.,\\nSpeaker1: Hello there.\\nSpeaker2: Hi, how are you?"
                       : "Enter the text you want to convert to speech..."
                   }
                   value={text}
                   onChange={(e) => {
                     const newText = e.target.value;
-                    const oldFirstLine = text.split("\n")[0].trim();
-                    const newFirstLine = newText.split("\n")[0].trim();
+                    const oldFirstLine = text.split("\\n")[0].trim();
+                    const newFirstLine = newText.split("\\n")[0].trim();
 
                     if (projectName === oldFirstLine || projectName === "") {
                       setProjectName(newFirstLine);

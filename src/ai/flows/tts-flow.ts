@@ -20,6 +20,7 @@ const SpeakerConfigSchema = z.object({
 const GenerateSpeechInputSchema = z.object({
   text: z.string().describe('The text to convert to speech. For multi-speaker, use speaker tags (e.g., "Speaker1: Hello.").'),
   speakers: z.array(SpeakerConfigSchema).describe("Configuration for each speaker's voice."),
+  modelName: z.string().optional().default('gemini-2.5-flash-preview-tts').describe('The name of the TTS model to use.'),
 });
 export type GenerateSpeechInput = z.infer<typeof GenerateSpeechInputSchema>;
 
@@ -65,7 +66,7 @@ const generateSpeechFlow = ai.defineFlow(
     inputSchema: GenerateSpeechInputSchema,
     outputSchema: GenerateSpeechOutputSchema,
   },
-  async ({ text, speakers }) => {
+  async ({ text, speakers, modelName }) => {
     let speechConfig: any;
 
     if (speakers && speakers.length === 2) {
@@ -94,7 +95,7 @@ const generateSpeechFlow = ai.defineFlow(
     }
 
     const { media } = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
+      model: googleAI.model(modelName!),
       config: {
         responseModalities: ['AUDIO'],
         speechConfig,
