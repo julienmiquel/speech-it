@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
-import { Mp3Encoder } from 'lamejs';
+import * as lamejs from 'lamejs';
 
 const CombineAudioInputSchema = z.array(z.string().describe("A WAV audio file as a data URI. Expected format: 'data:audio/wav;base64,<encoded_data>'."));
 export type CombineAudioInput = z.infer<typeof CombineAudioInputSchema>;
@@ -74,7 +74,7 @@ const combineAudioFlow = ai.defineFlow(
           const pcmBuffer = Buffer.concat(pcmData);
           const int16Pcm = new Int16Array(pcmBuffer.buffer, pcmBuffer.byteOffset, pcmBuffer.length / Int16Array.BYTES_PER_ELEMENT);
 
-          const mp3Encoder = new Mp3Encoder(formatInfo.channels, formatInfo.sampleRate, 128);
+          const mp3Encoder = new lamejs.Mp3Encoder(formatInfo.channels, formatInfo.sampleRate, 128);
           const mp3Data: Buffer[] = [];
           const sampleBlockSize = 1152;
 
