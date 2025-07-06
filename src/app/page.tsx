@@ -62,6 +62,49 @@ interface Speaker {
   voiceName: string;
 }
 
+// Helper function to split text by a maximum length, respecting sentence boundaries where possible.
+function splitByLength(text: string, maxLength: number): string[] {
+  const finalChunks: string[] = [];
+  if (!text) return finalChunks;
+
+  // No need to split if it's already short enough
+  if (text.length <= maxLength) {
+    return [text];
+  }
+
+  // Attempt to split by sentences first
+  const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [];
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    // If a single sentence is longer than the max length, hard-split it
+    if (sentence.length > maxLength) {
+      if (currentChunk.length > 0) {
+        finalChunks.push(currentChunk.trim());
+        currentChunk = "";
+      }
+      for (let i = 0; i < sentence.length; i += maxLength) {
+        finalChunks.push(sentence.substring(i, i + maxLength));
+      }
+    } else {
+      // If adding the next sentence exceeds max length, push the current chunk
+      if (currentChunk.length + sentence.length > maxLength) {
+        finalChunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += sentence;
+      }
+    }
+  }
+
+  // Add the last remaining chunk
+  if (currentChunk.length > 0) {
+    finalChunks.push(currentChunk.trim());
+  }
+
+  return finalChunks.filter((c) => c.length > 0);
+}
+
 function splitTextIntoChunks(
   text: string,
   option: 'length' | 'scene' | 'speaker',
@@ -69,63 +112,49 @@ function splitTextIntoChunks(
 ): string[] {
   if (!text) return [];
 
+  let initialChunks: string[];
+
   switch (option) {
     case 'scene':
-      return text
-        .split(/(?=\bSCÈNE\b)/i)
+      // Split by #SCENE followed by a number
+      initialChunks = text
+        .split(/(?=#SCENE \d+)/i)
         .map((s) => s.trim())
         .filter(Boolean);
+      break;
 
     case 'speaker': {
-      if (config.speakerNames.length < 2) return [text.trim()]; // Splitting by speaker only makes sense for multi-speaker
-      const speakerNamesPattern = config.speakerNames.join('|');
-      const speakerRegex = new RegExp(`(?=\\b(${speakerNamesPattern})\\b:)`, 'i');
-      return text
-        .split(speakerRegex)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // Don't split by speaker if there's only one speaker defined
+      if (config.speakerNames.length < 2) {
+        initialChunks = [text.trim()];
+      } else {
+        const speakerNamesPattern = config.speakerNames.join('|');
+        // Look for speaker name at the beginning of a line, followed by a colon
+        const speakerRegex = new RegExp(`(?=\\b(${speakerNamesPattern})\\b:)`, 'i');
+        initialChunks = text
+          .split(speakerRegex)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      break;
     }
 
     case 'length':
-    default: {
-      const { maxLength } = config;
-      const finalChunks: string[] = [];
-      if (!text) return finalChunks;
-
-      if (text.length <= maxLength) {
-        return [text];
-      }
-
-      const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [];
-      let currentChunk = '';
-
-      for (const sentence of sentences) {
-        if (sentence.length > maxLength) {
-          if (currentChunk.length > 0) {
-            finalChunks.push(currentChunk.trim());
-            currentChunk = '';
-          }
-          for (let i = 0; i < sentence.length; i += maxLength) {
-            finalChunks.push(sentence.substring(i, i + maxLength));
-          }
-        } else {
-          if (currentChunk.length + sentence.length > maxLength) {
-            finalChunks.push(currentChunk.trim());
-            currentChunk = sentence;
-          } else {
-            currentChunk += sentence;
-          }
-        }
-      }
-
-      if (currentChunk.length > 0) {
-        finalChunks.push(currentChunk.trim());
-      }
-
-      return finalChunks.filter((c) => c.length > 0);
-    }
+    default:
+      // If the primary option is by length, just use the helper and return
+      return splitByLength(text, config.maxLength);
   }
+  
+  // For 'scene' and 'speaker' splits, further divide any chunks that are too long
+  const finalChunks = initialChunks.flatMap(chunk => 
+    chunk.length > config.maxLength 
+      ? splitByLength(chunk, config.maxLength) 
+      : chunk
+  );
+
+  return finalChunks.filter(Boolean);
 }
+
 
 async function generateSpeechWithRetry(
   input: GenerateSpeechInput,
@@ -479,11 +508,7 @@ export default function Home() {
                 </Label>
                 <Textarea
                   id="text"
-                  placeholder={
-                    speakers.length > 1
-                      ? "Enter your conversation, e.g.,\\nSpeaker1: Hello there.\\nSpeaker2: Hi, how are you?"
-                      : "Enter the text you want to convert to speech..."
-                  }
+                  placeholder="Enter text to convert. Use '#SCENE 1' for scenes or 'Speaker1: ...' for dialogues."
                   value={text}
                   onChange={(e) => {
                     const newText = e.target.value;
@@ -514,7 +539,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="scene" id="scene" />
-                    <Label htmlFor="scene" className="font-normal">By Scene (SCÈNE)</Label>
+                    <Label htmlFor="scene" className="font-normal">By Scene (#SCENE XX)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="speaker" id="speaker" />
