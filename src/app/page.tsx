@@ -43,6 +43,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import JSZip from "jszip";
 
@@ -61,41 +62,69 @@ interface Speaker {
   voiceName: string;
 }
 
-function splitTextIntoChunks(text: string, maxLength: number): string[] {
-  const finalChunks: string[] = [];
-  if (!text) return finalChunks;
+function splitTextIntoChunks(
+  text: string,
+  option: 'length' | 'scene' | 'speaker',
+  config: { maxLength: number; speakers: Speaker[] }
+): string[] {
+  if (!text) return [];
 
-  if (text.length <= maxLength) {
-    return [text];
-  }
+  switch (option) {
+    case 'scene':
+      return text
+        .split(/(?=\bSCÈNE\b)/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-  const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [];
-  let currentChunk = "";
+    case 'speaker': {
+      if (config.speakers.length < 2) return [text.trim()]; // Splitting by speaker only makes sense for multi-speaker
+      const speakerNames = config.speakers.map((s) => s.name).join('|');
+      const speakerRegex = new RegExp(`(?=\\b(${speakerNames})\\b:)`, 'i');
+      return text
+        .split(speakerRegex)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
 
-  for (const sentence of sentences) {
-    if (sentence.length > maxLength) {
+    case 'length':
+    default: {
+      const { maxLength } = config;
+      const finalChunks: string[] = [];
+      if (!text) return finalChunks;
+
+      if (text.length <= maxLength) {
+        return [text];
+      }
+
+      const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [];
+      let currentChunk = '';
+
+      for (const sentence of sentences) {
+        if (sentence.length > maxLength) {
+          if (currentChunk.length > 0) {
+            finalChunks.push(currentChunk.trim());
+            currentChunk = '';
+          }
+          for (let i = 0; i < sentence.length; i += maxLength) {
+            finalChunks.push(sentence.substring(i, i + maxLength));
+          }
+        } else {
+          if (currentChunk.length + sentence.length > maxLength) {
+            finalChunks.push(currentChunk.trim());
+            currentChunk = sentence;
+          } else {
+            currentChunk += sentence;
+          }
+        }
+      }
+
       if (currentChunk.length > 0) {
         finalChunks.push(currentChunk.trim());
-        currentChunk = "";
       }
-      for (let i = 0; i < sentence.length; i += maxLength) {
-        finalChunks.push(sentence.substring(i, i + maxLength));
-      }
-    } else {
-      if (currentChunk.length + sentence.length > maxLength) {
-        finalChunks.push(currentChunk.trim());
-        currentChunk = sentence;
-      } else {
-        currentChunk += sentence;
-      }
+
+      return finalChunks.filter((c) => c.length > 0);
     }
   }
-
-  if (currentChunk.length > 0) {
-    finalChunks.push(currentChunk.trim());
-  }
-
-  return finalChunks.filter((c) => c.length > 0);
 }
 
 async function generateSpeechWithRetry(
@@ -176,6 +205,7 @@ export default function Home() {
   const [openPopoverId, setOpenPopoverId] = useState<number | null>(null);
   const [modelName, setModelName] = useState("gemini-2.5-flash-preview-tts");
   const [isModelPopoverOpen, setIsModelPopoverOpen] = useState(false);
+  const [splitOption, setSplitOption] = useState<'length' | 'scene' | 'speaker'>('length');
 
   const hasFailures = useMemo(() => generationParts.some(p => p.status === 'error'), [generationParts]);
   const successfulParts = useMemo(() => generationParts.filter(p => p.status === 'success'), [generationParts]);
@@ -282,9 +312,11 @@ export default function Home() {
       return;
     }
 
+    const chunks = splitTextIntoChunks(text, splitOption, { maxLength: MAX_CHUNK_LENGTH, speakers });
+
     const partsToProcess = hasFailures
       ? generationParts.map(p => (p.status === 'error' ? { ...p, status: 'pending' } : p))
-      : splitTextIntoChunks(text, MAX_CHUNK_LENGTH).map((chunk, index) => ({
+      : chunks.map((chunk, index) => ({
           id: index,
           text: chunk,
           status: 'pending' as 'pending',
@@ -467,6 +499,28 @@ export default function Home() {
                   required
                   className="resize-none text-base rounded-lg"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-base">Split Options</Label>
+                <RadioGroup
+                  value={splitOption}
+                  onValueChange={(value) => setSplitOption(value as 'length' | 'scene' | 'speaker')}
+                  className="flex space-x-4 pt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="length" id="length" />
+                    <Label htmlFor="length" className="font-normal">By Length</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="scene" id="scene" />
+                    <Label htmlFor="scene" className="font-normal">By Scene (SCÈNE)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="speaker" id="speaker" />
+                    <Label htmlFor="speaker" className="font-normal">By Speaker Name</Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               <div className="space-y-4">
