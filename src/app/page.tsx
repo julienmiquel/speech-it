@@ -229,7 +229,7 @@ export default function Home() {
   const [projectName, setProjectName] = useState("");
   const [text, setText] = useState("");
   const [speakers, setSpeakers] = useState<Speaker[]>([
-    { id: Date.now(), name: "Speaker1", voiceName: "charon" },
+    { id: 1, name: "Speaker1", voiceName: "charon" },
   ]);
   const [generationParts, setGenerationParts] = useState<GenerationPart[]>([]);
   const [combinedAudioUrl, setCombinedAudioUrl] = useState<string | null>(null);
@@ -248,7 +248,7 @@ export default function Home() {
   const handleClear = () => {
     setProjectName("");
     setText("");
-    setSpeakers([{ id: Date.now(), name: "Speaker1", voiceName: "charon" }]);
+    setSpeakers([{ id: 1, name: "Speaker1", voiceName: "charon" }]);
     setGenerationParts([]);
     setCombinedAudioUrl(null);
     setError(null);
