@@ -466,61 +466,125 @@ export default function Home() {
                   </Button>
                 </div>
                 <div className="space-y-3">
-                  {speakers.map((speaker, index) => (
-                    <div key={speaker.id} className="flex items-center gap-3 p-3 border rounded-lg bg-secondary/50">
-                      <div className="flex-1">
-                        <Label htmlFor={`speaker-name-${speaker.id}`} className="sr-only">Speaker Name</Label>
-                        <Input
-                          id={`speaker-name-${speaker.id}`}
-                          placeholder={speakers.length > 1 ? `Speaker ${index + 1}` : 'Speaker Name'}
-                          value={speaker.name}
-                          onChange={(e) => updateSpeaker(speaker.id, 'name', e.target.value)}
-                          className="text-base rounded-lg"
-                          aria-label="Speaker name"
-                          disabled={speakers.length === 1}
-                        />
-                         {speakers.length === 1 && <p className="text-xs text-muted-foreground mt-1">Name not used in single-speaker mode.</p>}
-                      </div>
-                      <div className="flex-[2]">
-                         <Popover open={openPopoverId === speaker.id} onOpenChange={(isOpen) => setOpenPopoverId(isOpen ? speaker.id : null)}>
+                  {speakers.map((speaker, index) => {
+                    const selectedVoice = voices.find(
+                      (v) => v.value === speaker.voiceName
+                    );
+                    return (
+                      <div
+                        key={speaker.id}
+                        className="flex items-center gap-3 p-3 border rounded-lg bg-secondary/50"
+                      >
+                        <div className="flex-1">
+                          <Label
+                            htmlFor={`speaker-name-${speaker.id}`}
+                            className="sr-only"
+                          >
+                            Speaker Name
+                          </Label>
+                          <Input
+                            id={`speaker-name-${speaker.id}`}
+                            placeholder={
+                              speakers.length > 1
+                                ? `Speaker ${index + 1}`
+                                : "Speaker Name"
+                            }
+                            value={speaker.name}
+                            onChange={(e) =>
+                              updateSpeaker(speaker.id, "name", e.target.value)
+                            }
+                            className="text-base rounded-lg"
+                            aria-label="Speaker name"
+                            disabled={speakers.length === 1}
+                          />
+                          {speakers.length === 1 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Name not used in single-speaker mode.
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex-[2]">
+                          <Popover
+                            open={openPopoverId === speaker.id}
+                            onOpenChange={(isOpen) =>
+                              setOpenPopoverId(isOpen ? speaker.id : null)
+                            }
+                          >
                             <PopoverTrigger asChild>
-                                <Button variant="outline" role="combobox" className="w-full justify-between text-base rounded-lg bg-background">
-                                    {speaker.voiceName ? voices.find((v) => v.value === speaker.voiceName)?.label : "Select voice..."}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="w-full justify-between text-base rounded-lg bg-background"
+                              >
+                                <span className="truncate">
+                                  {selectedVoice
+                                    ? `${selectedVoice.label} (${selectedVoice.description})`
+                                    : "Select voice..."}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                    <CommandInput placeholder="Search voice..." />
-                                    <CommandEmpty>No voice found.</CommandEmpty>
-                                    <CommandList>
-                                        <CommandGroup>
-                                            {voices.map((voice) => (
-                                                <CommandItem key={voice.value} value={voice.value} onSelect={(currentValue) => {
-                                                    updateSpeaker(speaker.id, "voiceName", currentValue);
-                                                    setOpenPopoverId(null);
-                                                }}>
-                                                    <Check className={cn("mr-2 h-4 w-4", speaker.voiceName === voice.value ? "opacity-100" : "opacity-0")} />
-                                                    <span className="flex-grow">{voice.label}</span>
-                                                    {voice.description && <span className="text-xs text-muted-foreground">{voice.description}</span>}
-                                                </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
+                              <Command>
+                                <CommandInput placeholder="Search voice..." />
+                                <CommandEmpty>No voice found.</CommandEmpty>
+                                <CommandList>
+                                  <CommandGroup>
+                                    {voices.map((voice) => (
+                                      <CommandItem
+                                        key={voice.value}
+                                        value={voice.value}
+                                        onSelect={(currentValue) => {
+                                          updateSpeaker(
+                                            speaker.id,
+                                            "voiceName",
+                                            currentValue
+                                          );
+                                          setOpenPopoverId(null);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            speaker.voiceName === voice.value
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        <span className="flex-grow">
+                                          {voice.label}
+                                        </span>
+                                        {voice.description && (
+                                          <span className="text-xs text-muted-foreground">
+                                            {voice.description}
+                                          </span>
+                                        )}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
                             </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="flex-none">
-                        {speakers.length > 1 ? (
-                            <Button variant="ghost" size="icon" onClick={() => removeSpeaker(speaker.id)} className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Remove speaker</span>
+                          </Popover>
+                        </div>
+                        <div className="flex-none">
+                          {speakers.length > 1 ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSpeaker(speaker.id)}
+                              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Remove speaker</span>
                             </Button>
-                        ) : <div className="w-10 h-10" /> /* Placeholder to keep alignment */}
+                          ) : (
+                            <div className="w-10 h-10" />
+                          ) /* Placeholder to keep alignment */}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>
