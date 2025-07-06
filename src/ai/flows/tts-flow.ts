@@ -12,10 +12,14 @@ import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import wav from 'wav';
 
+const SpeakerConfigSchema = z.object({
+  speaker: z.string().describe("The name of the speaker (e.g., 'Speaker1') to be used in the prompt."),
+  voiceName: z.string().describe('The prebuilt voice name to use for this speaker.'),
+});
+
 const GenerateSpeechInputSchema = z.object({
-  text: z.string().describe('The text to convert to speech.'),
-  languageCode: z.string().describe('The language code for the speech. This is used for UI purposes and included in the voice name.'),
-  voiceName: z.string().describe('The voice name to use for the speech.'),
+  text: z.string().describe('The text to convert to speech. For multi-speaker, use speaker tags (e.g., "Speaker1: Hello.").'),
+  speakers: z.array(SpeakerConfigSchema).describe("Configuration for each speaker's voice."),
 });
 export type GenerateSpeechInput = z.infer<typeof GenerateSpeechInputSchema>;
 
@@ -61,22 +65,44 @@ const generateSpeechFlow = ai.defineFlow(
     inputSchema: GenerateSpeechInputSchema,
     outputSchema: GenerateSpeechOutputSchema,
   },
-  async ({ text, voiceName }) => {
+  async ({ text, speakers }) => {
+    let speechConfig: any;
+
+    if (speakers && speakers.length > 1) {
+      // Multi-speaker configuration
+      speechConfig = {
+        multiSpeakerVoiceConfig: {
+          speakerVoiceConfigs: speakers.map(({ speaker, voiceName }) => ({
+            speaker,
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          })),
+        },
+      };
+    } else {
+      // Single-speaker configuration (or fallback)
+      const voiceName = speakers && speakers.length === 1 ? speakers[0].voiceName : 'charon'; // Default voice
+      speechConfig = {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName },
+        },
+      };
+    }
+
     const { media } = await ai.generate({
       model: googleAI.model('gemini-2.5-flash-preview-tts'),
       config: {
         responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName },
-          },
-        },
+        speechConfig,
       },
       prompt: text,
     });
+    
     if (!media) {
       throw new Error('No audio media returned from the model.');
     }
+    
     const audioBuffer = Buffer.from(
       media.url.substring(media.url.indexOf(',') + 1),
       'base64'

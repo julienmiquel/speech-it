@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -23,6 +23,8 @@ import {
   RefreshCcw,
   AlertCircle,
   CircleCheck,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { generateSpeech, type GenerateSpeechInput, type GenerateSpeechOutput } from "@/ai/flows/tts-flow";
 import { combineAudio } from "@/ai/flows/combine-audio-flow";
@@ -39,14 +41,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import JSZip from "jszip";
@@ -58,6 +52,12 @@ interface GenerationPart {
   text: string;
   status: 'pending' | 'generating' | 'success' | 'error';
   audioUrl?: string;
+}
+
+interface Speaker {
+  id: number;
+  name: string;
+  voiceName: string;
 }
 
 function splitTextIntoChunks(text: string, maxLength: number): string[] {
@@ -121,74 +121,77 @@ async function generateSpeechWithRetry(
   throw lastError || new Error(`Speech generation failed after ${retries} retries.`);
 }
 
-
-const languages = [
-  { value: "fr-FR", label: "French (France)" },
-  { value: "en-US", label: "English (US)" },
-  { value: "es-ES", label: "Spanish (Spain)" },
-];
-
 const voices = [
-  { value: "achernar", label: "Achernar", gender: "male", description: "Soft" },
-  { value: "achird", label: "Achird", gender: "female", description: "Friendly" },
-  { value: "algenib", label: "Algenib", gender: "male", description: "Gravelly" },
-  { value: "algieba", label: "Algieba", gender: "male", description: "Smooth" },
-  { value: "alnilam", label: "Alnilam", gender: "female", description: "Firm" },
-  { value: "aoede", label: "Aoede", gender: "female", description: "Breezy" },
-  { value: "autonoe", label: "Autonoe", gender: "female", description: "Bright" },
-  { value: "callirrhoe", label: "Callirrhoe", gender: "female", description: "Easy-going" },
-  { value: "charon", label: "Charon", gender: "male", description: "Informative" },
-  { value: "despina", label: "Despina", gender: "female", description: "Smooth" },
-  { value: "enceladus", label: "Enceladus", gender: "male", description: "Breathy" },
-  { value: "erinome", label: "Erinome", gender: "female", description: "Clear" },
-  { value: "fenrir", label: "Fenrir", gender: "male", description: "Excitable" },
-  { value: "gacrux", label: "Gacrux", gender: "male", description: "Mature" },
-  { value: "iapetus", label: "Iapetus", gender: "male", description: "Clear" },
-  { value: "kore", label: "Kore", gender: "female", description: "Firm" },
-  { value: "laomedeia", label: "Laomedeia", gender: "female", description: "Upbeat" },
-  { value: "leda", label: "Leda", gender: "female", description: "Youthful" },
-  { value: "orus", label: "Orus", gender: "male", description: "Firm" },
-  { value: "puck", label: "Puck", gender: "male", description: "Upbeat" },
-  { value: "pulcherrima", label: "Pulcherrima", gender: "female", description: "Forward" },
-  { value: "rasalgethi", label: "Rasalgethi", gender: "male", description: "Informative" },
-  { value: "sadachbia", label: "Sadachbia", gender: "female", description: "Lively" },
-  { value: "sadaltager", label: "Sadaltager", gender: "male", description: "Knowledgeable" },
-  { value: "schedar", label: "Schedar", gender: "female", description: "Even" },
-  { value: "sulafat", label: "Sulafat", gender: "male", description: "Warm" },
-  { value: "umbriel", label: "Umbriel", gender: "female", description: "Easy-going" },
-  { value: "vindemiatrix", label: "Vindemiatrix", gender: "female", description: "Gentle" },
-  { value: "zephyr", label: "Zephyr", gender: "male", description: "Bright" },
-  { value: "zubenelgenubi", label: "Zubenelgenubi", gender: "male", description: "Casual" },
+  { value: "achernar", label: "Achernar", description: "Soft" },
+  { value: "achird", label: "Achird", description: "Friendly" },
+  { value: "algenib", label: "Algenib", description: "Gravelly" },
+  { value: "algieba", label: "Algieba", description: "Smooth" },
+  { value: "alnilam", label: "Alnilam", description: "Firm" },
+  { value: "aoede", label: "Aoede", description: "Breezy" },
+  { value: "autonoe", label: "Autonoe", description: "Bright" },
+  { value: "callirrhoe", label: "Callirrhoe", description: "Easy-going" },
+  { value: "charon", label: "Charon", description: "Informative" },
+  { value: "despina", label: "Despina", description: "Smooth" },
+  { value: "enceladus", label: "Enceladus", description: "Breathy" },
+  { value: "erinome", label: "Erinome", description: "Clear" },
+  { value: "fenrir", label: "Fenrir", description: "Excitable" },
+  { value: "gacrux", label: "Gacrux", description: "Mature" },
+  { value: "iapetus", label: "Iapetus", description: "Clear" },
+  { value: "kore", label: "Kore", description: "Firm" },
+  { value: "laomedeia", label: "Laomedeia", description: "Upbeat" },
+  { value: "leda", label: "Leda", description: "Youthful" },
+  { value: "orus", label: "Orus", description: "Firm" },
+  { value: "puck", label: "Puck", description: "Upbeat" },
+  { value: "pulcherrima", label: "Pulcherrima", description: "Forward" },
+  { value: "rasalgethi", label: "Rasalgethi", description: "Informative" },
+  { value: "sadachbia", label: "Sadachbia", description: "Lively" },
+  { value: "sadaltager", label: "Sadaltager", description: "Knowledgeable" },
+  { value: "schedar", label: "Schedar", description: "Even" },
+  { value: "sulafat", label: "Sulafat", description: "Warm" },
+  { value: "umbriel", label: "Umbriel", description: "Easy-going" },
+  { value: "vindemiatrix", label: "Vindemiatrix", description: "Gentle" },
+  { value: "zephyr", label: "Zephyr", description: "Bright" },
+  { value: "zubenelgenubi", label: "Zubenelgenubi", description: "Casual" },
 ];
 
 export default function Home() {
   const [projectName, setProjectName] = useState("");
   const [text, setText] = useState("");
-  const [languageCode, setLanguageCode] = useState("fr-FR");
-  const [voiceName, setVoiceName] = useState("charon");
-  const [gender, setGender] = useState("any");
+  const [speakers, setSpeakers] = useState<Speaker[]>([
+    { id: Date.now(), name: "Speaker1", voiceName: "charon" },
+  ]);
   const [generationParts, setGenerationParts] = useState<GenerationPart[]>([]);
   const [combinedAudioUrl, setCombinedAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCombining, setIsCombining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
+  const [openPopoverId, setOpenPopoverId] = useState<number | null>(null);
 
   const hasFailures = useMemo(() => generationParts.some(p => p.status === 'error'), [generationParts]);
   const successfulParts = useMemo(() => generationParts.filter(p => p.status === 'success'), [generationParts]);
 
-  const filteredVoices = useMemo(() => {
-    if (gender === "any") {
-      return voices;
-    }
-    return voices.filter((v) => v.gender === gender);
-  }, [gender]);
+  const addSpeaker = () => {
+    setSpeakers([
+      ...speakers,
+      {
+        id: Date.now(),
+        name: `Speaker${speakers.length + 1}`,
+        voiceName: "puck", // A different default for variety
+      },
+    ]);
+  };
 
-  useEffect(() => {
-    if (voiceName && !filteredVoices.some((v) => v.value === voiceName)) {
-      setVoiceName("");
+  const removeSpeaker = (id: number) => {
+    if (speakers.length > 1) {
+      setSpeakers(speakers.filter((s) => s.id !== id));
     }
-  }, [filteredVoices, voiceName]);
+  };
+
+  const updateSpeaker = (id: number, field: 'name' | 'voiceName', value: string) => {
+    setSpeakers(
+      speakers.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
+  };
 
   const handleDownloadAll = async () => {
     if (successfulParts.length === 0 && !combinedAudioUrl) {
@@ -246,8 +249,8 @@ export default function Home() {
       setIsLoading(false);
       return;
     }
-    if (!voiceName) {
-      setError("Please select a voice.");
+    if (speakers.some(s => !s.voiceName)) {
+      setError("Please select a voice for every speaker.");
       setIsLoading(false);
       return;
     }
@@ -271,6 +274,8 @@ export default function Home() {
 
     const updatedParts = [...partsToProcess];
     let anyFailuresThisRun = false;
+    
+    const speakerConfigs = speakers.map(s => ({ speaker: s.name, voiceName: s.voiceName }));
 
     for (let i = 0; i < updatedParts.length; i++) {
       if (updatedParts[i].status === 'success') {
@@ -283,8 +288,7 @@ export default function Home() {
       try {
         const response = await generateSpeechWithRetry({
           text: updatedParts[i].text,
-          languageCode,
-          voiceName,
+          speakers: speakerConfigs,
         });
 
         if (response.media) {
@@ -365,7 +369,11 @@ export default function Home() {
                 </Label>
                 <Textarea
                   id="text"
-                  placeholder="Enter the text you want to convert to speech..."
+                  placeholder={
+                    speakers.length > 1
+                      ? "Enter your conversation, e.g.,\nSpeaker1: Hello there.\nSpeaker2: Hi, how are you?"
+                      : "Enter the text you want to convert to speech..."
+                  }
                   value={text}
                   onChange={(e) => {
                     const newText = e.target.value;
@@ -382,116 +390,74 @@ export default function Home() {
                   className="resize-none text-base rounded-lg"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="language" className="text-base">
-                    Language
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label className="text-base">
+                    {speakers.length > 1 ? "Speakers" : "Speaker"}
                   </Label>
-                  <Select
-                    value={languageCode}
-                    onValueChange={setLanguageCode}
-                    defaultValue="fr-FR"
-                  >
-                    <SelectTrigger
-                      id="language"
-                      className="text-base rounded-lg"
-                    >
-                      <SelectValue placeholder="Select a language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languages.map((lang) => (
-                        <SelectItem key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={addSpeaker} className="rounded-lg">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Speaker
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-base">Voice Name</Label>
-                  <Popover open={open} onOpenChange={setOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={open}
-                        className="w-full justify-between text-base rounded-lg"
-                      >
-                        {voiceName
-                          ? voices.find((voice) => voice.value === voiceName)
-                              ?.label
-                          : "Select voice..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search voice..." />
-                        <CommandEmpty>No voice found.</CommandEmpty>
-                        <CommandList>
-                          <CommandGroup>
-                            {filteredVoices.map((voice) => (
-                              <CommandItem
-                                key={voice.value}
-                                value={voice.value}
-                                onSelect={(currentValue) => {
-                                  setVoiceName(
-                                    currentValue === voiceName
-                                      ? ""
-                                      : currentValue
-                                  );
-                                  setOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    voiceName === voice.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                <span className="flex-grow">{voice.label}</span>
-                                {voice.description && (
-                                <span className="text-xs text-muted-foreground">
-                                  {voice.description}
-                                </span>
-                                )}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                <div className="space-y-3">
+                  {speakers.map((speaker, index) => (
+                    <div key={speaker.id} className="flex items-center gap-3 p-3 border rounded-lg bg-secondary/50">
+                      <div className="flex-1">
+                        <Label htmlFor={`speaker-name-${speaker.id}`} className="sr-only">Speaker Name</Label>
+                        <Input
+                          id={`speaker-name-${speaker.id}`}
+                          placeholder={speakers.length > 1 ? `Speaker ${index + 1}` : 'Speaker Name'}
+                          value={speaker.name}
+                          onChange={(e) => updateSpeaker(speaker.id, 'name', e.target.value)}
+                          className="text-base rounded-lg"
+                          aria-label="Speaker name"
+                          disabled={speakers.length === 1}
+                        />
+                         {speakers.length === 1 && <p className="text-xs text-muted-foreground mt-1">Name not used in single-speaker mode.</p>}
+                      </div>
+                      <div className="flex-[2]">
+                         <Popover open={openPopoverId === speaker.id} onOpenChange={(isOpen) => setOpenPopoverId(isOpen ? speaker.id : null)}>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" role="combobox" className="w-full justify-between text-base rounded-lg bg-background">
+                                    {speaker.voiceName ? voices.find((v) => v.value === speaker.voiceName)?.label : "Select voice..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                    <CommandInput placeholder="Search voice..." />
+                                    <CommandEmpty>No voice found.</CommandEmpty>
+                                    <CommandList>
+                                        <CommandGroup>
+                                            {voices.map((voice) => (
+                                                <CommandItem key={voice.value} value={voice.value} onSelect={(currentValue) => {
+                                                    updateSpeaker(speaker.id, "voiceName", currentValue);
+                                                    setOpenPopoverId(null);
+                                                }}>
+                                                    <Check className={cn("mr-2 h-4 w-4", speaker.voiceName === voice.value ? "opacity-100" : "opacity-0")} />
+                                                    <span className="flex-grow">{voice.label}</span>
+                                                    {voice.description && <span className="text-xs text-muted-foreground">{voice.description}</span>}
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="flex-none">
+                        {speakers.length > 1 ? (
+                            <Button variant="ghost" size="icon" onClick={() => removeSpeaker(speaker.id)} className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Remove speaker</span>
+                            </Button>
+                        ) : <div className="w-10 h-10" /> /* Placeholder to keep alignment */}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-base">Voice Gender</Label>
-                <RadioGroup
-                  value={gender}
-                  onValueChange={setGender}
-                  className="flex items-center space-x-4 pt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="any" id="gender-any" />
-                    <Label htmlFor="gender-any" className="font-normal">
-                      Any
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="gender-female" />
-                    <Label htmlFor="gender-female" className="font-normal">
-                      Female
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="gender-male" />
-                    <Label htmlFor="gender-male" className="font-normal">
-                      Male
-                    </Label>
-                  </div>
-                </RadioGroup>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col items-stretch gap-4 px-8 pb-8">
