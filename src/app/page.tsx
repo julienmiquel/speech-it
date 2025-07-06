@@ -158,6 +158,8 @@ const voices = [
 const models = [
   { value: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash TTS (Recommended)" },
   { value: "gemini-2.5-pro-preview-tts", label: "Gemini 2.5 Pro TTS" },
+  { value: "gemini-2.5-flash-preview-native-audio-dialog", label: "Gemini 2.5 Flash Native Audio Dialog" },
+  { value: "gemini-2.5-flash-exp-native-audio-thinking-dialog", label: "Gemini 2.5 Flash Exp Native Audio Thinking Dialog" },
 ];
 
 export default function Home() {
