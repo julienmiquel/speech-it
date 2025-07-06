@@ -179,6 +179,18 @@ export default function Home() {
 
   const hasFailures = useMemo(() => generationParts.some(p => p.status === 'error'), [generationParts]);
   const successfulParts = useMemo(() => generationParts.filter(p => p.status === 'success'), [generationParts]);
+  const isFormEmpty = !text && !projectName && generationParts.length === 0 && !combinedAudioUrl;
+
+  const handleClear = () => {
+    setProjectName("");
+    setText("");
+    setSpeakers([{ id: Date.now(), name: "Speaker1", voiceName: "charon" }]);
+    setGenerationParts([]);
+    setCombinedAudioUrl(null);
+    setError(null);
+    setIsLoading(false);
+    setIsCombining(false);
+  };
 
   const addSpeaker = () => {
     setSpeakers([
@@ -611,6 +623,18 @@ export default function Home() {
                   "Generate Speech"
                 )}
               </Button>
+              {!isLoading && !isFormEmpty && (
+                 <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleClear}
+                  className="w-full text-lg py-7 rounded-xl font-bold"
+                  size="lg"
+                >
+                  <Trash2 className="mr-2 h-6 w-6"/>
+                  Clear
+                </Button>
+              )}
               {(successfulParts.length > 0) && !isLoading && (
                 <Button
                   type="button"
