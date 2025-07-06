@@ -37,48 +37,48 @@ const combineAudioFlow = ai.defineFlow(
     }
 
     const buffers = audioDataUris.map(uri => Buffer.from(uri.substring(uri.indexOf(',') + 1), 'base64'));
-    
-    let combinedWavBuffer: Buffer;
 
-    if (buffers.length === 1) {
-      combinedWavBuffer = buffers[0];
-    } else {
-      const HEADER_LENGTH = 44;
-      const header = buffers[0].slice(0, HEADER_LENGTH);
-      const audioData = buffers.map(buffer => buffer.slice(HEADER_LENGTH));
-      const combinedAudioData = Buffer.concat(audioData);
-      const newHeader = Buffer.from(header);
-      newHeader.writeUInt32LE(combinedAudioData.length, 40);
-      newHeader.writeUInt32LE(36 + combinedAudioData.length, 4);
-      combinedWavBuffer = Buffer.concat([newHeader, combinedAudioData]);
+    let formatInfo: any = null;
+    const pcmDataChunks: Buffer[] = [];
+
+    // Process each buffer to extract PCM data and check format consistency
+    for (const buffer of buffers) {
+        await new Promise<void>((resolve, reject) => {
+            const reader = new wav.Reader();
+            reader.on('format', (format) => {
+                if (!formatInfo) {
+                    formatInfo = format;
+                } else if (format.channels !== formatInfo.channels || format.sampleRate !== formatInfo.sampleRate || format.bitDepth !== formatInfo.bitDepth) {
+                    return reject(new Error('All audio chunks must have the same format.'));
+                }
+            });
+
+            reader.on('data', (chunk) => {
+                pcmDataChunks.push(chunk);
+            });
+
+            reader.on('end', () => resolve());
+            reader.on('error', (err) => reject(new Error(`Error reading WAV buffer: ${err.message}`)));
+            reader.end(buffer);
+        });
     }
 
-    const reader = new wav.Reader();
-    const pcmData: Buffer[] = [];
-    let formatInfo: any = {};
+    if (!formatInfo) {
+        throw new Error("Could not read audio format information from any of the chunks.");
+    }
+    if (formatInfo.channels > 2) {
+        throw new Error('Cannot encode audio with more than 2 channels.');
+    }
 
-    return new Promise<CombineAudioOutput>((resolve, reject) => {
-      reader.on('format', (format) => {
-        formatInfo = format;
-        if (format.channels > 2) {
-            return reject(new Error('Cannot encode audio with more than 2 channels.'));
-        }
-      });
+    const combinedPcmBuffer = Buffer.concat(pcmDataChunks);
+    const int16Pcm = new Int16Array(combinedPcmBuffer.buffer, combinedPcmBuffer.byteOffset, combinedPcmBuffer.length / Int16Array.BYTES_PER_ELEMENT);
 
-      reader.on('data', (chunk) => {
-        pcmData.push(chunk);
-      });
+    try {
+        const mp3Encoder = new Mp3Encoder(formatInfo.channels, formatInfo.sampleRate, 128); // 128 kbps bitrate
+        const mp3Data: Buffer[] = [];
+        const sampleBlockSize = 1152; 
 
-      reader.on('end', () => {
-        try {
-          const pcmBuffer = Buffer.concat(pcmData);
-          const int16Pcm = new Int16Array(pcmBuffer.buffer, pcmBuffer.byteOffset, pcmBuffer.length / Int16Array.BYTES_PER_ELEMENT);
-
-          const mp3Encoder = new Mp3Encoder(formatInfo.channels, formatInfo.sampleRate, 128);
-          const mp3Data: Buffer[] = [];
-          const sampleBlockSize = 1152;
-
-          for (let i = 0; i < int16Pcm.length; i += sampleBlockSize * formatInfo.channels) {
+        for (let i = 0; i < int16Pcm.length; i += sampleBlockSize * formatInfo.channels) {
             const end = i + sampleBlockSize * formatInfo.channels;
             const sampleChunk = int16Pcm.subarray(i, end);
             
@@ -99,27 +99,19 @@ const combineAudioFlow = ai.defineFlow(
             if (mp3buf.length > 0) {
               mp3Data.push(Buffer.from(mp3buf));
             }
-          }
-          const mp3buf = mp3Encoder.flush();
-          if (mp3buf.length > 0) {
-            mp3Data.push(Buffer.from(mp3buf));
-          }
-
-          const mp3Buffer = Buffer.concat(mp3Data);
-          
-          resolve({
-            media: 'data:audio/mpeg;base64,' + mp3Buffer.toString('base64'),
-          });
-        } catch(err: any) {
-          reject(new Error(`MP3 encoding failed: ${err.message}`));
         }
-      });
+        const mp3buf = mp3Encoder.flush();
+        if (mp3buf.length > 0) {
+          mp3Data.push(Buffer.from(mp3buf));
+        }
 
-      reader.on('error', (err) => {
-        reject(new Error(`Error reading combined WAV buffer: ${err.message}`));
-      });
-
-      reader.end(combinedWavBuffer);
-    });
+        const mp3Buffer = Buffer.concat(mp3Data);
+        
+        return {
+            media: 'data:audio/mpeg;base64,' + mp3Buffer.toString('base64'),
+        };
+    } catch(err: any) {
+        throw new Error(`MP3 encoding failed: ${err.message}`);
+    }
   }
 );

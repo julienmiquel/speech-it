@@ -257,14 +257,16 @@ export default function Home() {
   };
 
   const addSpeaker = () => {
-    setSpeakers([
-      ...speakers,
-      {
-        id: Date.now(),
-        name: `Speaker${speakers.length + 1}`,
-        voiceName: "puck", // A different default for variety
-      },
-    ]);
+    if (speakers.length < 2) {
+      setSpeakers([
+        ...speakers,
+        {
+          id: Date.now(),
+          name: `Speaker${speakers.length + 1}`,
+          voiceName: "puck", // A different default for variety
+        },
+      ]);
+    }
   };
 
   const removeSpeaker = (id: number) => {
@@ -419,20 +421,16 @@ export default function Home() {
     const finalHasFailures = updatedParts.some(p => p.status === 'error');
 
     if (!finalHasFailures && finalSuccessfulUrls.length > 0) {
-      if (finalSuccessfulUrls.length > 1) {
-        setIsCombining(true);
-        try {
-          const combined = await combineAudio(finalSuccessfulUrls);
-          if (combined.media) {
-            setCombinedAudioUrl(combined.media);
-          } else {
-            throw new Error("Failed to get combined audio from server.");
-          }
-        } catch (err: any) {
-           setError(err.message || "An unexpected error occurred during audio combination.");
+      setIsCombining(true);
+      try {
+        const combined = await combineAudio(finalSuccessfulUrls);
+        if (combined.media) {
+          setCombinedAudioUrl(combined.media);
+        } else {
+          throw new Error("Failed to get combined audio from server.");
         }
-      } else if (finalSuccessfulUrls.length === 1) {
-        setCombinedAudioUrl(finalSuccessfulUrls[0]);
+      } catch (err: any) {
+          setError(err.message || "An unexpected error occurred during audio combination.");
       }
     }
 
