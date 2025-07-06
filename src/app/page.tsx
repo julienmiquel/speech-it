@@ -21,6 +21,8 @@ import {
   Check,
   Download,
   RefreshCcw,
+  AlertCircle,
+  CircleCheck,
 } from "lucide-react";
 import { generateSpeech, type GenerateSpeechInput, type GenerateSpeechOutput } from "@/ai/flows/tts-flow";
 import { combineAudio } from "@/ai/flows/combine-audio-flow";
@@ -50,6 +52,13 @@ import { cn } from "@/lib/utils";
 import JSZip from "jszip";
 
 const MAX_CHUNK_LENGTH = 1000;
+
+interface GenerationPart {
+  id: number;
+  text: string;
+  status: 'pending' | 'generating' | 'success' | 'error';
+  audioUrl?: string;
+}
 
 function splitTextIntoChunks(text: string, maxLength: number): string[] {
   const finalChunks: string[] = [];
@@ -158,13 +167,15 @@ export default function Home() {
   const [languageCode, setLanguageCode] = useState("fr-FR");
   const [voiceName, setVoiceName] = useState("charon");
   const [gender, setGender] = useState("any");
-  const [audioUrls, setAudioUrls] = useState<string[]>([]);
+  const [generationParts, setGenerationParts] = useState<GenerationPart[]>([]);
   const [combinedAudioUrl, setCombinedAudioUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCombining, setIsCombining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [showRetryButton, setShowRetryButton] = useState(false);
+
+  const hasFailures = useMemo(() => generationParts.some(p => p.status === 'error'), [generationParts]);
+  const successfulParts = useMemo(() => generationParts.filter(p => p.status === 'success'), [generationParts]);
 
   const filteredVoices = useMemo(() => {
     if (gender === "any") {
@@ -180,7 +191,7 @@ export default function Home() {
   }, [filteredVoices, voiceName]);
 
   const handleDownloadAll = async () => {
-    if (audioUrls.length === 0 && !combinedAudioUrl) {
+    if (successfulParts.length === 0 && !combinedAudioUrl) {
       setError("No audio files to download.");
       return;
     }
@@ -193,6 +204,7 @@ export default function Home() {
       zip.file(`${safeProjectName}.wav`, combinedBase64, { base64: true });
     }
 
+    const audioUrls = successfulParts.map(p => p.audioUrl!);
     if (audioUrls.length > 1) {
       const partsFolder = zip.folder("parts");
       if (partsFolder) {
@@ -227,66 +239,93 @@ export default function Home() {
     setIsLoading(true);
     setIsCombining(false);
     setError(null);
-    setAudioUrls([]);
     setCombinedAudioUrl(null);
-    setShowRetryButton(false);
 
     if (!text.trim()) {
       setError("Text to be converted cannot be empty.");
       setIsLoading(false);
       return;
     }
-
     if (!voiceName) {
       setError("Please select a voice.");
       setIsLoading(false);
       return;
     }
 
-    try {
-      const chunks = splitTextIntoChunks(text, MAX_CHUNK_LENGTH);
-      if (chunks.length === 0) {
-        setError("Text is too short to be chunked.");
-        setIsLoading(false);
-        return;
+    const partsToProcess = hasFailures
+      ? generationParts.map(p => (p.status === 'error' ? { ...p, status: 'pending' } : p))
+      : splitTextIntoChunks(text, MAX_CHUNK_LENGTH).map((chunk, index) => ({
+          id: index,
+          text: chunk,
+          status: 'pending' as 'pending',
+          audioUrl: undefined,
+        }));
+    
+    if (partsToProcess.length === 0 && !hasFailures) {
+      setError("Text is too short to be chunked.");
+      setIsLoading(false);
+      return;
+    }
+
+    setGenerationParts(partsToProcess);
+
+    const updatedParts = [...partsToProcess];
+    let anyFailuresThisRun = false;
+
+    for (let i = 0; i < updatedParts.length; i++) {
+      if (updatedParts[i].status === 'success') {
+        continue;
       }
 
-      const chunkUrls: string[] = [];
-      for (const chunk of chunks) {
+      updatedParts[i] = { ...updatedParts[i], status: 'generating' };
+      setGenerationParts([...updatedParts]);
+
+      try {
         const response = await generateSpeechWithRetry({
-          text: chunk,
+          text: updatedParts[i].text,
           languageCode,
           voiceName,
         });
 
         if (response.media) {
-          chunkUrls.push(response.media);
-          setAudioUrls([...chunkUrls]);
+          updatedParts[i] = { ...updatedParts[i], status: 'success', audioUrl: response.media };
         } else {
           throw new Error("A response did not contain valid audio data.");
         }
+      } catch (err) {
+        anyFailuresThisRun = true;
+        updatedParts[i] = { ...updatedParts[i], status: 'error', audioUrl: undefined };
+        console.error(`Error generating speech for part ${i + 1}:`, err);
       }
-
-      if (chunkUrls.length > 1) {
-        setIsCombining(true);
-        const combined = await combineAudio(chunkUrls);
-        if (combined.media) {
-          setCombinedAudioUrl(combined.media);
-        } else {
-          throw new Error("Failed to get combined audio from server.");
-        }
-      } else if (chunkUrls.length === 1) {
-        setCombinedAudioUrl(chunkUrls[0]);
-      }
-    } catch (err: any) {
-      setError(
-        err.message || "An unexpected error occurred during the request."
-      );
-      setShowRetryButton(true);
-    } finally {
-      setIsLoading(false);
-      setIsCombining(false);
+      setGenerationParts([...updatedParts]);
     }
+    
+    const finalSuccessfulUrls = updatedParts
+      .filter(p => p.status === 'success' && p.audioUrl)
+      .map(p => p.audioUrl!);
+    
+    const finalHasFailures = updatedParts.some(p => p.status === 'error');
+
+    if (!finalHasFailures && finalSuccessfulUrls.length > 0) {
+      if (finalSuccessfulUrls.length > 1) {
+        setIsCombining(true);
+        try {
+          const combined = await combineAudio(finalSuccessfulUrls);
+          if (combined.media) {
+            setCombinedAudioUrl(combined.media);
+          } else {
+            throw new Error("Failed to get combined audio from server.");
+          }
+        } catch (err: any) {
+           setError(err.message || "An unexpected error occurred during audio combination.");
+        }
+      } else if (finalSuccessfulUrls.length === 1) {
+        setCombinedAudioUrl(finalSuccessfulUrls[0]);
+      }
+    }
+
+    setIsLoading(false);
+    setIsCombining(false);
   };
 
   return (
@@ -462,16 +501,16 @@ export default function Home() {
                     <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                     {isCombining ? "Assembling audio..." : "Generating..."}
                   </>
-                ) : showRetryButton ? (
+                ) : hasFailures ? (
                   <>
                     <RefreshCcw className="mr-2 h-6 w-6" />
-                    Retry Generation
+                    Retry Failed Parts
                   </>
                 ) : (
                   "Generate Speech"
                 )}
               </Button>
-              {(combinedAudioUrl || audioUrls.length > 0) && !isLoading && (
+              {(successfulParts.length > 0) && !isLoading && (
                 <Button
                   type="button"
                   variant="outline"
@@ -490,7 +529,7 @@ export default function Home() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-              {combinedAudioUrl && (
+              {combinedAudioUrl && !hasFailures && (
                 <div className="mt-6 p-4 border rounded-xl bg-accent/20">
                   <h3 className="font-semibold text-lg mb-3 text-accent-foreground">
                     Final Assembled Audio
@@ -506,20 +545,33 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              {audioUrls.length > 1 && (
+              {generationParts.length > 0 && (
                 <div className="mt-6 p-4 border rounded-xl bg-secondary">
                   <h3 className="font-semibold text-lg mb-3 text-secondary-foreground">
                     Audio Parts
                   </h3>
                   <div className="space-y-4">
-                    {audioUrls.map((url, index) => (
-                      <div key={index}>
-                        <Label className="text-sm text-muted-foreground">
-                          Part {index + 1}
+                    {generationParts.map((part, index) => (
+                      <div key={part.id}>
+                        <Label className="text-sm text-muted-foreground flex items-center justify-between">
+                           <span>Part {index + 1}</span>
+                           {part.status === 'generating' && <span className="flex items-center text-xs"><Loader2 className="mr-1 h-3 w-3 animate-spin" />Generating...</span>}
+                           {part.status === 'success' && <span className="flex items-center text-xs text-green-600"><CircleCheck className="mr-1 h-3 w-3" />Success</span>}
+                           {part.status === 'error' && <span className="flex items-center text-xs text-red-600"><AlertCircle className="mr-1 h-3 w-3" />Failed</span>}
                         </Label>
-                        <audio controls src={url} className="w-full mt-1">
-                          Your browser does not support the audio element.
-                        </audio>
+                        {part.status === 'success' && part.audioUrl ? (
+                            <audio controls src={part.audioUrl} className="w-full mt-1">
+                              Your browser does not support the audio element.
+                            </audio>
+                        ) : (
+                          <div className="w-full h-[40px] mt-1 bg-muted rounded-md flex items-center justify-center">
+                            <p className="text-sm text-muted-foreground">
+                              {part.status === 'pending' && 'Waiting to generate...'}
+                              {part.status === 'generating' && '...'}
+                              {part.status === 'error' && 'Could not generate audio for this part.'}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -536,7 +588,7 @@ export default function Home() {
             href="mailto:julienmiquel@google.com"
             className="text-primary underline-offset-4 hover:underline"
           >
-            &lt;julienmiquel@google.com&gt;
+            {'<julienmiquel@google.com>'}
           </a>
         </p>
       </footer>
