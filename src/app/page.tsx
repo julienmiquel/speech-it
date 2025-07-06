@@ -129,36 +129,36 @@ const languages = [
 ];
 
 const voices = [
-  { value: "achernar", label: "Achernar", gender: "male" },
-  { value: "achird", label: "Achird", gender: "female" },
-  { value: "algenib", label: "Algenib", gender: "male" },
-  { value: "algieba", label: "Algieba", gender: "male" },
-  { value: "alnilam", label: "Alnilam", gender: "female" },
-  { value: "aoede", label: "Aoede", gender: "female" },
-  { value: "autonoe", label: "Autonoe", gender: "female" },
-  { value: "callirrhoe", label: "Callirrhoe", gender: "female" },
-  { value: "charon", label: "Charon", gender: "male" },
-  { value: "despina", label: "Despina", gender: "female" },
-  { value: "enceladus", label: "Enceladus", gender: "male" },
-  { value: "erinome", label: "Erinome", gender: "female" },
-  { value: "fenrir", label: "Fenrir", gender: "male" },
-  { value: "gacrux", label: "Gacrux", gender: "male" },
-  { value: "iapetus", label: "Iapetus", gender: "male" },
-  { value: "kore", label: "Kore", gender: "female" },
-  { value: "laomedeia", label: "Laomedeia", gender: "female" },
-  { value: "leda", label: "Leda", gender: "female" },
-  { value: "orus", label: "Orus", gender: "male" },
-  { value: "puck", label: "Puck", gender: "male" },
-  { value: "pulcherrima", label: "Pulcherrima", gender: "female" },
-  { value: "rasalgethi", label: "Rasalgethi", gender: "male" },
-  { value: "sadachbia", label: "Sadachbia", gender: "female" },
-  { value: "sadaltager", label: "Sadaltager", gender: "male" },
-  { value: "schedar", label: "Schedar", gender: "female" },
-  { value: "sulafat", label: "Sulafat", gender: "male" },
-  { value: "umbriel", label: "Umbriel", gender: "female" },
-  { value: "vindemiatrix", label: "Vindemiatrix", gender: "female" },
-  { value: "zephyr", label: "Zephyr", gender: "male" },
-  { value: "zubenelgenubi", label: "Zubenelgenubi", gender: "male" },
+  { value: "achernar", label: "Achernar", gender: "male", description: "Soft" },
+  { value: "achird", label: "Achird", gender: "female", description: "Friendly" },
+  { value: "algenib", label: "Algenib", gender: "male", description: "Gravelly" },
+  { value: "algieba", label: "Algieba", gender: "male", description: "Smooth" },
+  { value: "alnilam", label: "Alnilam", gender: "female", description: "Firm" },
+  { value: "aoede", label: "Aoede", gender: "female", description: "Breezy" },
+  { value: "autonoe", label: "Autonoe", gender: "female", description: "Bright" },
+  { value: "callirrhoe", label: "Callirrhoe", gender: "female", description: "Easy-going" },
+  { value: "charon", label: "Charon", gender: "male", description: "Informative" },
+  { value: "despina", label: "Despina", gender: "female", description: "Smooth" },
+  { value: "enceladus", label: "Enceladus", gender: "male", description: "Breathy" },
+  { value: "erinome", label: "Erinome", gender: "female", description: "Clear" },
+  { value: "fenrir", label: "Fenrir", gender: "male", description: "Excitable" },
+  { value: "gacrux", label: "Gacrux", gender: "male", description: "Mature" },
+  { value: "iapetus", label: "Iapetus", gender: "male", description: "Clear" },
+  { value: "kore", label: "Kore", gender: "female", description: "Firm" },
+  { value: "laomedeia", label: "Laomedeia", gender: "female", description: "Upbeat" },
+  { value: "leda", label: "Leda", gender: "female", description: "Youthful" },
+  { value: "orus", label: "Orus", gender: "male", description: "Firm" },
+  { value: "puck", label: "Puck", gender: "male", description: "Upbeat" },
+  { value: "pulcherrima", label: "Pulcherrima", gender: "female", description: "Forward" },
+  { value: "rasalgethi", label: "Rasalgethi", gender: "male", description: "Informative" },
+  { value: "sadachbia", label: "Sadachbia", gender: "female", description: "Lively" },
+  { value: "sadaltager", label: "Sadaltager", gender: "male", description: "Knowledgeable" },
+  { value: "schedar", label: "Schedar", gender: "female", description: "Even" },
+  { value: "sulafat", label: "Sulafat", gender: "male", description: "Warm" },
+  { value: "umbriel", label: "Umbriel", gender: "female", description: "Easy-going" },
+  { value: "vindemiatrix", label: "Vindemiatrix", gender: "female", description: "Gentle" },
+  { value: "zephyr", label: "Zephyr", gender: "male", description: "Bright" },
+  { value: "zubenelgenubi", label: "Zubenelgenubi", gender: "male", description: "Casual" },
 ];
 
 export default function Home() {
@@ -451,7 +451,12 @@ export default function Home() {
                                       : "opacity-0"
                                   )}
                                 />
-                                {voice.label}
+                                <span className="flex-grow">{voice.label}</span>
+                                {voice.description && (
+                                <span className="text-xs text-muted-foreground">
+                                  {voice.description}
+                                </span>
+                                )}
                               </CommandItem>
                             ))}
                           </CommandGroup>
