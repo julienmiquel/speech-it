@@ -90,7 +90,7 @@ function splitByLength(text: string, maxLength: number): string[] {
       // If adding the next sentence exceeds max length, push the current chunk
       if (currentChunk.length + sentence.length > maxLength) {
         finalChunks.push(currentChunk.trim());
-        currentChunk = sentence;
+        currentChunk = "";
       } else {
         currentChunk += sentence;
       }
@@ -292,7 +292,7 @@ export default function Home() {
 
     if (combinedAudioUrl) {
       const combinedBase64 = combinedAudioUrl.split(",")[1];
-      zip.file(`${safeProjectName}.mp3`, combinedBase64, { base64: true });
+      zip.file(`${safeProjectName}.wav`, combinedBase64, { base64: true });
     }
 
     const audioUrls = successfulParts.map(p => p.audioUrl!);
