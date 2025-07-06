@@ -168,8 +168,13 @@ async function generateSpeechWithRetry(
         return response;
       }
       throw new Error("API returned a successful response but without media data.");
-    } catch (err) {
+    } catch (err: any) {
       lastError = err;
+       // If it's a quota error, don't retry. Fail immediately.
+      if (err.message && (err.message.includes('429') || err.message.toLowerCase().includes('quota'))) {
+        throw err;
+      }
+
       console.error(`Speech generation attempt ${i + 1} of ${retries} failed.`, err);
       if (i < retries - 1) {
         const delay = 500 * (i + 1);
@@ -389,7 +394,20 @@ export default function Home() {
         anyFailuresThisRun = true;
         updatedParts[i] = { ...updatedParts[i], status: 'error', audioUrl: undefined };
         console.error(`Error generating speech for part ${i + 1}:`, err);
-        setError(err.message || `An error occurred generating part ${i + 1}.`);
+
+        if (err.message && (err.message.includes('429') || err.message.toLowerCase().includes('quota'))) {
+            setError("API quota exceeded. Generation has been stopped. Please check your plan or try again later.");
+            // Mark remaining parts as errored so the user knows they weren't processed
+            for (let j = i + 1; j < updatedParts.length; j++) {
+                if (updatedParts[j].status !== 'success') {
+                    updatedParts[j] = { ...updatedParts[j], status: 'error' };
+                }
+            }
+            setGenerationParts([...updatedParts]);
+            break; // Stop the generation loop
+        } else {
+            setError(err.message || `An error occurred generating part ${i + 1}.`);
+        }
       }
       setGenerationParts([...updatedParts]);
     }
