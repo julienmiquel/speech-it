@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -156,6 +157,7 @@ const voices = [
 
 const models = [
   { value: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash TTS (Recommended)" },
+  { value: "gemini-2.5-pro-preview-tts", label: "Gemini 2.5 Pro TTS" },
 ];
 
 export default function Home() {
